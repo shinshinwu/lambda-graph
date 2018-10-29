@@ -12,26 +12,7 @@ const axios = require('axios');
 
   // let _callback = callback;
 
-  // const url = "https://dailygieselmann.com/time-series/eva%3Aoptinmonster.com?raw"
-
-  // axios.get(url)
-  // .then(response => {
-  //   let data = []
-  //   response.data.split('\n').forEach((v) => {
-  //     let utcSeconds = parseInt(v.split(',')[0])*1000 // convert into miliseconds
-  //     let twoYearsAgo = new Date().setFullYear(new Date().getFullYear() - 2)
-  //     if (utcSeconds > twoYearsAgo) {
-  //       data.push(parseInt(v.split(',')[1]))
-  //     }
-  //   })
-  // })
-  // .catch(error => {
-  //   console.log(error);
-  // });
-
-  // TODO: need to parse the data to below format and think about how to distribute the width and height pixels
-  // TODO: Need to test this with single band charts
-  // TODO: make good comments for the code and include in the eva code base
+  const url = "https://dailygieselmann.com/time-series/eva%3Aoptinmonster.com?raw"
 
   const evaRankColors = [
     {start: 4500000, end: 3000000, color: '#344b75', divider: 150, order: 10},
@@ -46,138 +27,156 @@ const axios = require('axios');
     {start: 10000,   end: 1,       color: '#60151F', divider: 1,   order: 1}
   ];
 
-  // let data = [
-  //   [10, 20, 17],
-  //   [20, 15, 15]
-  // ]
+  axios.get(url)
+  .then(response => {
+    let data = []
 
-  // (10,100,50,90)
-  // (10,90,50,70)
-  // (10,70,50,53)
-  // (50,100,90,80)
-  // (50,80,90,65)
-  // (50,65,90,50)
-
-  let data = [104213, 89953, 36812, 24863, 20893, 19513, 30257, 18854, 7660, 6716]
-
-  let trafficMax = Math.max(...data) // largest number for traffic, lowest ranking
-  let trafficMin = Math.min(...data) // lowest number for traffic, highest ranking
-
-  let startBand = evaRankColors.find((v) => {
-    if ((v.start >= trafficMax) && (v.end < trafficMax)) {
-      return true
-    }
-  })
-
-  let endBand = evaRankColors.find((v) => {
-    if ((v.start >= trafficMin) && (v.end < trafficMin)) {
-      return true
-    }
-  })
-
-  let output = []
-
-  let padding = 10 // leave 10 padding on all sides except for bottom
-  let xIncrement = 50
-
-  let formattedData = []
-  let bands = []
-  let orderedColors = []
-
-  evaRankColors.forEach((v) => {
-    if ((v.order <= startBand.order) && (v.order >= endBand.order)) {
-      bands.push(v)
-    }
-  })
-
-  bands.forEach(band => {
-    orderedColors.push(band.color)
-    formattedData.push({bandOrder: band.order, chartData:[]})
-  })
-
-  console.log('colors are ', orderedColors)
-
-  data.forEach((point, trafficIndex) => {
-    bands.forEach((band, bandIndex) => {
-      // if the current ranking is less (higher) than the band start, fill the color, otherwise the ranking does not fill this current band
-      let dataBand = formattedData.find(d => d.bandOrder == band.order)
-
-      if (point <= band.start) {
-        let bandDiff = band.start - point
-        let bandSize = band.start - band.end
-
-        // if the ranking ends in this band, only fill the diff, otherwise fill the entire band
-        if (bandDiff <= bandSize) {
-          dataBand.chartData.push(bandDiff / band.divider)
-        } else {
-          dataBand.chartData.push(bandSize / band.divider)
-        }
-      } else {
-        dataBand.chartData.push(0)
+    response.data.split('\n').forEach((v) => {
+      let utcSeconds = parseInt(v.split(',')[0])*1000 // convert into miliseconds
+      let twoYearsAgo = new Date().setFullYear(new Date().getFullYear() - 2)
+      if (utcSeconds > twoYearsAgo) {
+        data.push(parseInt(v.split(',')[1]))
       }
     })
-  })
 
-  // transpose array
-  let transposedData = []
+    // TODO: Need to test this with single band charts
+    // TODO: make good comments for the code and include in the eva code base
 
-  formattedData.forEach(e => transposedData.push(e.chartData))
+    // let data = [
+    //   [10, 20, 17],
+    //   [20, 15, 15]
+    // ]
 
-  transposedData = transposedData[0].map((col, i) => transposedData.map(row => row[i]));
+    // (10,100,50,90)
+    // (10,90,50,70)
+    // (10,70,50,53)
+    // (50,100,90,80)
+    // (50,80,90,65)
+    // (50,65,90,50)
 
-  console.log('transposed array is ', transposedData)
+    let trafficMax = Math.max(...data) // largest number for traffic, lowest ranking
+    let trafficMin = Math.min(...data) // lowest number for traffic, highest ranking
 
-  let width = transposedData.length * xIncrement + padding * 2
-  // height equals the max value of the highet bar (highest sum of transposed array)
-  let height = Math.max(...transposedData.map(a => {return a.reduce((sum, v) => sum+v)})) + padding
-
-  console.log('chart width and height are ', width, height)
-
-  let chart = gm(width, height, 'transparent')
-
-  transposedData.forEach((v, index) => {
-    let xStart = padding + xIncrement * index
-    let xEnd = padding + xIncrement * (index + 1)
-    let yStart = height
-
-    v.forEach((point, colorIndex) => {
-      let yEnd = yStart - point
-      chart.fill(orderedColors[colorIndex]);
-      chart.drawRectangle(xStart, yStart, xEnd, yEnd)
-      output.push({coors: [xStart, yStart, xEnd, yEnd], color: orderedColors[colorIndex]})
-      yStart = yEnd
+    let startBand = evaRankColors.find((v) => {
+      if ((v.start >= trafficMax) && (v.end < trafficMax)) {
+        return true
+      }
     })
 
-    // chart.fill(v.color);
-    // let yStart = height
-    // v.points.forEach((point, index) => {
-    //   let xEnd = xStart + xIncrement * index
-    //   let yEnd = yStart - point
-    //   chart.drawRectangle(xStart,yStart,xEnd,yEnd)
-    // })
+    let endBand = evaRankColors.find((v) => {
+      if ((v.start >= trafficMin) && (v.end < trafficMin)) {
+        return true
+      }
+    })
+
+    let output = []
+
+    let padding = 10 // leave 10 padding on all sides except for bottom
+    let xIncrement = 50
+
+    let formattedData = []
+    let bands = []
+    let orderedColors = []
+
+    evaRankColors.forEach((v) => {
+      if ((v.order <= startBand.order) && (v.order >= endBand.order)) {
+        bands.push(v)
+      }
+    })
+
+    bands.forEach(band => {
+      orderedColors.push(band.color)
+      formattedData.push({bandOrder: band.order, chartData:[]})
+    })
+
+    console.log('colors are ', orderedColors)
+
+    data.forEach((point, trafficIndex) => {
+      bands.forEach((band, bandIndex) => {
+        // if the current ranking is less (higher) than the band start, fill the color, otherwise the ranking does not fill this current band
+        let dataBand = formattedData.find(d => d.bandOrder == band.order)
+
+        if (point <= band.start) {
+          let bandDiff = band.start - point
+          let bandSize = band.start - band.end
+
+          // if the ranking ends in this band, only fill the diff, otherwise fill the entire band
+          if (bandDiff <= bandSize) {
+            dataBand.chartData.push(bandDiff / band.divider)
+          } else {
+            dataBand.chartData.push(bandSize / band.divider)
+          }
+        } else {
+          dataBand.chartData.push(0)
+        }
+      })
+    })
+
+    // transpose array
+    let transposedData = []
+
+    formattedData.forEach(e => transposedData.push(e.chartData))
+
+    transposedData = transposedData[0].map((col, i) => transposedData.map(row => row[i]));
+
+    console.log('transposed array is ', transposedData)
+
+    let width = transposedData.length * xIncrement + padding * 2
+    // height equals the max value of the highet bar (highest sum of transposed array)
+    let height = Math.max(...transposedData.map(a => {return a.reduce((sum, v) => sum+v)})) + padding
+
+    console.log('chart width and height are ', width, height)
+
+    let chart = gm(width, height, 'transparent')
+
+    transposedData.forEach((v, index) => {
+      let xStart = padding + xIncrement * index
+      let xEnd = padding + xIncrement * (index + 1)
+      let yStart = height
+
+      v.forEach((point, colorIndex) => {
+        let yEnd = yStart - point
+        chart.fill(orderedColors[colorIndex]);
+        chart.drawRectangle(xStart, yStart, xEnd, yEnd)
+        output.push({coors: [xStart, yStart, xEnd, yEnd], color: orderedColors[colorIndex]})
+        yStart = yEnd
+      })
+
+      // chart.fill(v.color);
+      // let yStart = height
+      // v.points.forEach((point, index) => {
+      //   let xEnd = xStart + xIncrement * index
+      //   let yEnd = yStart - point
+      //   chart.drawRectangle(xStart,yStart,xEnd,yEnd)
+      // })
+    })
+
+    console.log(output)
+
+
+    // chart.fill('#49669f')
+    // chart.drawRectangle(10,100,50,90)
+    // .drawRectangle(50,100,90,80)
+
+    // chart.fill('#f3ddcf')
+    // .drawRectangle(10,90,50,70)
+    // .drawRectangle(50,80,90,65)
+
+    // chart.fill('#992f2f')
+    // .drawRectangle(10,70,50,53)
+    // .drawRectangle(50,65,90,50)
+
+    // resize the image and force to change the aspect ratio (https://aheckmann.github.io/gm/docs.html#drawing-primitives)
+    chart.resize(900, 300, "!")
+      .write('/Users/anna/Documents/webdev/eva-lambda/charts/test.png', function (err) {
+      if (!err) console.log('done');
+      if (err) console.log(err);
+    });
+
+
   })
-
-  console.log(output)
-
-
-  // chart.fill('#49669f')
-  // chart.drawRectangle(10,100,50,90)
-  // .drawRectangle(50,100,90,80)
-
-  // chart.fill('#f3ddcf')
-  // .drawRectangle(10,90,50,70)
-  // .drawRectangle(50,80,90,65)
-
-  // chart.fill('#992f2f')
-  // .drawRectangle(10,70,50,53)
-  // .drawRectangle(50,65,90,50)
-
-  // resize the image and force to change the aspect ratio (https://aheckmann.github.io/gm/docs.html#drawing-primitives)
-
-  chart.resize(900, 300, "!")
-    .write('/Users/anna/Documents/webdev/eva-lambda/charts/test.png', function (err) {
-    if (!err) console.log('done');
-    if (err) console.log(err);
+  .catch(error => {
+    console.log(error);
   });
 
 // };
